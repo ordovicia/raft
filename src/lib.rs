@@ -4,32 +4,29 @@
 extern crate failure;
 extern crate rand;
 
-type ServerId = usize;
+type NodeId = usize;
 type Term = u64;
 type Millisec = i32;
 
 mod error;
 mod log;
 mod message;
-mod server;
+mod node;
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn it_works() {
-        use ServerId;
-        use server::{LocalServer, RemoteServer};
+        use NodeId;
+        use node::{LocalNode, RemoteNode};
         use std::collections::HashMap;
 
         let election_timeout_range = (150, 300);
 
-        let (mut locals, remotes): (
-            Vec<LocalServer<i32>>,
-            HashMap<ServerId, RemoteServer<i32>>,
-        ) = (0..5)
+        let (mut locals, remotes): (Vec<LocalNode<i32>>, HashMap<NodeId, RemoteNode<i32>>) = (0..5)
             .map(|id| {
-                let (local, tx) = LocalServer::new(id, election_timeout_range);
-                let remote = RemoteServer::new(id, tx);
+                let (local, tx) = LocalNode::new(id, election_timeout_range);
+                let remote = RemoteNode::new(id, tx);
                 (local, (id, remote))
             })
             .unzip();

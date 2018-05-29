@@ -7,35 +7,35 @@ use rand::{self, Rng};
 
 use log::LogEntry;
 use message::Message;
-use {Millisec, ServerId, Term};
+use {Millisec, NodeId, Term};
 
-pub trait ServerSend<T> {
-    /// Send a message to this server asynchronously
+pub trait NodeSend<T> {
+    /// Send a message to this node asynchronously
     fn send(&self, msg: Message<T>) -> Result<(), mpsc::SendError<Message<T>>>;
 }
 
 #[derive(Clone, Debug)]
-pub struct RemoteServer<T> {
-    /// Unique ID of each server
-    id: ServerId,
+pub struct RemoteNode<T> {
+    /// Unique ID of each node
+    id: NodeId,
 
     /// Sending-half of channel
     tx: mpsc::Sender<Message<T>>,
 }
 
-impl<T> RemoteServer<T> {
-    pub fn new(id: ServerId, tx: mpsc::Sender<Message<T>>) -> Self {
-        RemoteServer { id, tx }
+impl<T> RemoteNode<T> {
+    pub fn new(id: NodeId, tx: mpsc::Sender<Message<T>>) -> Self {
+        RemoteNode { id, tx }
     }
 }
 
-impl<T> ServerSend<T> for RemoteServer<T> {
+impl<T> NodeSend<T> for RemoteNode<T> {
     fn send(&self, msg: Message<T>) -> Result<(), mpsc::SendError<Message<T>>> {
         self.tx.send(msg)
     }
 }
 
-pub trait ServerRecv<T> {
+pub trait NodeRecv<T> {
     /// Attempts to receive a message.
     /// Returns `Err(mpsc::TryRecvError::Empty)` if not exists.
     fn try_recv(&self) -> Result<Message<T>, mpsc::TryRecvError>;
@@ -46,21 +46,21 @@ pub trait ServerRecv<T> {
 }
 
 #[derive(Debug)]
-pub struct LocalServer<T> {
-    // Persistent state on all servers
-    /// Unique ID of each server
-    id: ServerId,
-    /// Latest term server has seen
+pub struct LocalNode<T> {
+    // Persistent state on all nodes
+    /// Unique ID of each node
+    id: NodeId,
+    /// Latest term node has seen
     term: Term,
 
     /// Candidate ID that received vote in current term
-    voted_for: Option<ServerId>,
+    voted_for: Option<NodeId>,
     /// Log entries
     log: Vec<LogEntry<T>>,
 
-    // Volatile state on all servers
-    /// State of each server
-    state: ServerState,
+    // Volatile state on all nodes
+    /// State of each node
+    state: NodeState,
 
     /// Index of highest log entry known to be committed
     commit_idx: usize,
@@ -68,33 +68,33 @@ pub struct LocalServer<T> {
     last_applied: usize,
 
     // Volatile state on leaders
-    /// For each server, index of the next log entry to send to that server
+    /// For each node, index of the next log entry to send to that node
     next_idx: Vec<usize>,
-    /// For each server, index of highest log entry known to be replicated on server
+    /// For each node, index of highest log entry known to be replicated on node
     match_idx: Vec<usize>,
 
     election_timeout_range: (Millisec, Millisec),
 
     // Message
     rx: mpsc::Receiver<Message<T>>,
-    peers: HashMap<ServerId, RemoteServer<T>>,
+    peers: HashMap<NodeId, RemoteNode<T>>,
 }
 
-impl<T> LocalServer<T> {
+impl<T> LocalNode<T> {
     pub fn new(
-        id: ServerId,
+        id: NodeId,
         election_timeout_range: (Millisec, Millisec),
     ) -> (Self, mpsc::Sender<Message<T>>) {
         let (tx, rx) = mpsc::channel();
 
-        let server = LocalServer {
+        let node = LocalNode {
             id,
             term: 0,
 
             voted_for: None,
             log: vec![],
 
-            state: ServerState::Follower,
+            state: NodeState::Follower,
 
             commit_idx: 0,
             last_applied: 0,
@@ -108,10 +108,10 @@ impl<T> LocalServer<T> {
             peers: HashMap::new(),
         };
 
-        (server, tx)
+        (node, tx)
     }
 
-    pub fn set_peers(&mut self, peers: HashMap<ServerId, RemoteServer<T>>) {
+    pub fn set_peers(&mut self, peers: HashMap<NodeId, RemoteNode<T>>) {
         self.peers = peers;
     }
 
@@ -120,7 +120,7 @@ impl<T> LocalServer<T> {
     }
 }
 
-impl<T> ServerRecv<T> for LocalServer<T> {
+impl<T> NodeRecv<T> for LocalNode<T> {
     fn try_recv(&self) -> Result<Message<T>, mpsc::TryRecvError> {
         self.rx.try_recv()
     }
@@ -130,9 +130,9 @@ impl<T> ServerRecv<T> for LocalServer<T> {
     }
 }
 
-/// State of each server
+/// State of each node
 #[derive(Clone, Debug)]
-pub enum ServerState {
+pub enum NodeState {
     Leader,
     Candidate,
     Follower,
