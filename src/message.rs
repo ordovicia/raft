@@ -1,6 +1,7 @@
 use Term;
 use log::{LogEntry, LogEntryId};
 
+#[derive(Debug)]
 pub enum Message<T> {
     RequestVote {
         term: Term,

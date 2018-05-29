@@ -4,6 +4,5 @@ version = "0.1.0"
 authors = ["Hidehito Yabuuchi <hdht.ybuc@gmail.com>"]
 
 [dependencies]
-derive_builder = "0.5.1"
 failure = "0.1.1"
 rand = "0.5.0"
