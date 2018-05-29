@@ -1,17 +1,21 @@
+#![feature(deadline_api)]
 #![allow(dead_code)]
+
+// TODO: proper privacy
+// TODO: client command
 
 #[macro_use]
 extern crate failure;
 extern crate rand;
 
-type NodeId = usize;
-type Term = u64;
-type Millisec = i32;
+pub type NodeId = usize;
+pub type Term = u64;
+pub type Millisec = u64;
 
-mod error;
-mod log;
-mod message;
-mod node;
+pub mod error;
+pub mod log;
+pub mod message;
+pub mod node;
 
 #[cfg(test)]
 mod tests {
@@ -23,7 +27,10 @@ mod tests {
 
         let election_timeout_range = (150, 300);
 
-        let (mut locals, remotes): (Vec<LocalNode<i32>>, HashMap<NodeId, RemoteNode<i32>>) = (0..5)
+        type Remote = RemoteNode<i32>;
+        type Local = LocalNode<i32, Remote>;
+
+        let (mut locals, remotes): (Vec<Local>, HashMap<NodeId, Remote>) = (0..5)
             .map(|id| {
                 let (local, tx) = LocalNode::new(id, election_timeout_range);
                 let remote = RemoteNode::new(id, tx);

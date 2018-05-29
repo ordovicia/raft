@@ -1,15 +1,54 @@
-use Term;
 use log::{LogEntry, LogEntryId};
+use {NodeId, Term};
 
 #[derive(Debug)]
-pub enum Message<T> {
-    RequestVote {
+pub enum Message<T: Clone> {
+    // RequestVote
+    RequestVote(RequestVote),
+
+    RequestVoteRes {
+        /// Term, for candidate to update itself
         term: Term,
-        latest_log_id: LogEntryId,
+        /// True means candidate received vote
+        vote_granted: bool,
     },
-    AppendEntry {
-        new_log: LogEntry<T>,
-        last_log_id: LogEntryId,
+
+    // AppendEntries
+    AppendEntries(AppendEntries<T>),
+
+    AppendEntriesRes {
+        /// Term, for leader to update itself
+        term: Term,
+        /// True if follower contained entry matching `prev_log_id`
+        success: bool,
     },
-    Reject,
+}
+
+#[derive(Debug)]
+pub struct RequestVote {
+    /// Candidate's term
+    pub term: Term,
+    /// Candidate requesting vote
+    pub candidate_id: NodeId,
+    /// ID of candidate's last log entry
+    pub latest_log_id: Option<LogEntryId>,
+}
+
+#[derive(Debug)]
+pub struct AppendEntries<T: Clone> {
+    /// Leader's term
+    pub term: Term,
+
+    /// So follower can redirect clients
+    pub leader_id: NodeId,
+
+    /// ID of log entry immediately preceding new ones
+    pub prev_log_id: Option<LogEntryId>,
+
+    /// Log entries to store (`None` for heatbeat).
+    /// Assuming ordered by older-to-newer.
+    pub entries: Option<Vec<LogEntry<T>>>,
+
+    /// Leader's `commit_idx`
+    pub leader_commit: usize,
 }

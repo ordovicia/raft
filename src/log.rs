@@ -1,13 +1,13 @@
 use Term;
 
-#[derive(Debug)]
-pub struct LogEntry<T> {
-    id: LogEntryId,
+#[derive(Clone, Debug)]
+pub struct LogEntry<T: Clone> {
+    pub id: LogEntryId,
     command: T,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, PartialOrd, PartialEq)]
 pub struct LogEntryId {
-    term: Term,
-    idx: usize,
+    pub term: Term,
+    pub idx: usize,
 }
