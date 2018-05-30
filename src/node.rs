@@ -264,8 +264,6 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
     }
 
     fn tick_leader(&mut self) -> Result<(), Error> {
-        // TODO
-
         loop {
             // Sends AppendEntries to all nodes
             for peer in self.peers.values() {
@@ -273,7 +271,7 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                     term: self.term,
                     leader_id: self.id,
                     prev_log_id: self.log.last().map(|l| l.id),
-                    entries: None, // TODO
+                    entries: None, // TODO: client command
                     leader_commit: self.commit_idx,
                 })) {
                     return Err(Error::TxDisconnected);
@@ -315,7 +313,7 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                         }
 
                         if success {
-                            // TODO
+                            // TODO: commit
                         }
                     }
                 },
@@ -338,10 +336,13 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
             latest_log_id,
         } = msg;
 
-        let vote_granted = if term < &self.term {
+        let vote_granted = if *term < self.term {
             false
         } else {
-            if self.voted_for.is_none() || self.is_log_up_to_date(latest_log_id) {
+            let voted_for_ok = self.voted_for.map(|id| id == *candidate_id).unwrap_or(true);
+            let latest_log_ok = self.is_log_up_to_date(latest_log_id);
+
+            if voted_for_ok && latest_log_ok {
                 self.voted_for = Some(*candidate_id);
                 true
             } else {
@@ -374,7 +375,7 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
             leader_commit,
         } = msg;
 
-        let success = if term < &self.term || !self.contains_log_id(prev_log_id) {
+        let success = if *term < self.term || !self.contains_log_id(prev_log_id) {
             false
         } else {
             if let Some(entries) = entries {
@@ -401,7 +402,7 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
             true
         };
 
-        if leader_commit > &self.commit_idx {
+        if *leader_commit > self.commit_idx {
             self.commit_idx = cmp::min(
                 *leader_commit,
                 self.log.last().map(|l| l.id.idx).unwrap_or(0),
