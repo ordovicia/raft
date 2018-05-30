@@ -9,7 +9,7 @@ use rand::{self, Rng};
 use error::Error;
 use log::{LogEntry, LogEntryId};
 use message::{AppendEntries, Message, RequestVote};
-use {Millisec, NodeId, Term};
+use {Millisec, Term};
 
 pub trait Remote<T: Clone> {
     /// Send a message to this node asynchronously
@@ -19,14 +19,14 @@ pub trait Remote<T: Clone> {
 #[derive(Clone, Debug)]
 pub struct RemoteNode<T: Clone> {
     /// Unique ID of each node
-    id: NodeId,
+    id: usize,
 
     /// Sending-half of channel
     tx: mpsc::Sender<Message<T>>,
 }
 
 impl<T: Clone> RemoteNode<T> {
-    pub fn new(id: NodeId, tx: mpsc::Sender<Message<T>>) -> Self {
+    pub fn new(id: usize, tx: mpsc::Sender<Message<T>>) -> Self {
         RemoteNode { id, tx }
     }
 }
@@ -51,12 +51,12 @@ pub trait Local<T: Clone> {
 pub struct LocalNode<T: Clone, R: Remote<T>> {
     // Persistent state on all nodes
     /// Unique ID of each node
-    id: NodeId,
+    id: usize,
     /// Latest term node has seen
     term: Term,
 
     /// Candidate ID that received vote in current term
-    voted_for: Option<NodeId>,
+    voted_for: Option<usize>,
     /// Log entries
     log: Vec<LogEntry<T>>,
 
@@ -71,21 +71,21 @@ pub struct LocalNode<T: Clone, R: Remote<T>> {
 
     // Volatile state on leaders
     /// For each node, index of the next log entry to send to that node
-    next_idx: HashMap<NodeId, usize>,
+    next_idx: HashMap<usize, usize>,
     /// For each node, index of highest log entry known to be replicated on node
-    match_idx: HashMap<NodeId, usize>,
+    match_idx: HashMap<usize, usize>,
 
     heartbeat_tick: Millisec,
     election_timeout_range: (Millisec, Millisec),
 
     // Channels
     rx: mpsc::Receiver<Message<T>>,
-    peers: HashMap<NodeId, R>,
+    peers: HashMap<usize, R>,
 }
 
 impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
     pub fn new(
-        id: NodeId,
+        id: usize,
         election_timeout_range: (Millisec, Millisec),
     ) -> (Self, mpsc::Sender<Message<T>>) {
         let (tx, rx) = mpsc::channel();
@@ -117,7 +117,7 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
         (node, tx)
     }
 
-    pub fn set_peers(&mut self, peers: HashMap<NodeId, R>) {
+    pub fn set_peers(&mut self, peers: HashMap<usize, R>) {
         self.peers = peers;
     }
 

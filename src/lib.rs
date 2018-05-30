@@ -8,7 +8,6 @@
 extern crate failure;
 extern crate rand;
 
-pub type NodeId = usize;
 pub type Term = u64;
 pub type Millisec = u64;
 
@@ -21,7 +20,6 @@ pub mod node;
 mod tests {
     #[test]
     fn it_works() {
-        use NodeId;
         use node::{LocalNode, RemoteNode};
         use std::collections::HashMap;
 
@@ -30,7 +28,7 @@ mod tests {
         type Remote = RemoteNode<i32>;
         type Local = LocalNode<i32, Remote>;
 
-        let (mut locals, remotes): (Vec<Local>, HashMap<NodeId, Remote>) = (0..5)
+        let (mut locals, remotes): (Vec<Local>, HashMap<usize, Remote>) = (0..5)
             .map(|id| {
                 let (local, tx) = LocalNode::new(id, election_timeout_range);
                 let remote = RemoteNode::new(id, tx);

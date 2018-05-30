@@ -1,5 +1,5 @@
+use Term;
 use log::{LogEntry, LogEntryId};
-use {NodeId, Term};
 
 #[derive(Debug)]
 pub enum Message<T: Clone> {
@@ -29,7 +29,7 @@ pub struct RequestVote {
     /// Candidate's term
     pub term: Term,
     /// Candidate requesting vote
-    pub candidate_id: NodeId,
+    pub candidate_id: usize,
     /// ID of candidate's last log entry
     pub latest_log_id: Option<LogEntryId>,
 }
@@ -40,7 +40,7 @@ pub struct AppendEntries<T: Clone> {
     pub term: Term,
 
     /// So follower can redirect clients
-    pub leader_id: NodeId,
+    pub leader_id: usize,
 
     /// ID of log entry immediately preceding new ones
     pub prev_log_id: Option<LogEntryId>,
