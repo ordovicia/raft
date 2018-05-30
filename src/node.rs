@@ -71,9 +71,9 @@ pub struct LocalNode<T: Clone, R: Remote<T>> {
 
     // Volatile state on leaders
     /// For each node, index of the next log entry to send to that node
-    next_idx: Vec<usize>,
+    next_idx: HashMap<NodeId, usize>,
     /// For each node, index of highest log entry known to be replicated on node
-    match_idx: Vec<usize>,
+    match_idx: HashMap<NodeId, usize>,
 
     heartbeat_tick: Millisec,
     election_timeout_range: (Millisec, Millisec),
@@ -104,8 +104,8 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
             commit_idx: 0,
             last_applied: 0,
 
-            next_idx: vec![],
-            match_idx: vec![],
+            next_idx: HashMap::new(),
+            match_idx: HashMap::new(),
 
             heartbeat_tick: election_timeout_range.0 / 2,
             election_timeout_range,
@@ -225,6 +225,10 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                                 // Wins majority
                                 // Converts to leader
                                 self.state = NodeState::Leader;
+                                for peer in self.peers.keys() {
+                                    self.next_idx.insert(*peer, self.log.len());
+                                    self.match_idx.insert(*peer, 0);
+                                }
                                 break Ok(());
                             }
                         }
@@ -271,7 +275,7 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                     term: self.term,
                     leader_id: self.id,
                     prev_log_id: self.log.last().map(|l| l.id),
-                    entries: None, // TODO: client command
+                    entries: None,
                     leader_commit: self.commit_idx,
                 })) {
                     return Err(Error::TxDisconnected);
