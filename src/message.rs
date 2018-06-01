@@ -1,5 +1,5 @@
-use Term;
 use log::{LogEntry, LogEntryId};
+use Term;
 
 #[derive(Debug)]
 pub enum Message<T: Clone> {
@@ -19,6 +19,10 @@ pub enum Message<T: Clone> {
     AppendEntriesRes {
         /// Term, for leader to update itself
         term: Term,
+        /// Follower responsing appendance
+        follower_id: usize,
+        /// Highest log entry ID follower received.
+        recv_log_id: Option<usize>,
         /// True if follower contained entry matching `prev_log_id`
         success: bool,
     },

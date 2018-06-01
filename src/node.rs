@@ -270,12 +270,19 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
     fn tick_leader(&mut self) -> Result<(), Error> {
         loop {
             // Sends AppendEntries to all nodes
-            for peer in self.peers.values() {
+            for (peer_id, peer) in &self.peers {
+                let next_idx = self.next_idx[peer_id];
+                let entries = if self.log.len() > next_idx {
+                    Some(self.log[next_idx..].to_vec())
+                } else {
+                    None
+                };
+
                 if let Err(mpsc::SendError(_)) = peer.send(Message::AppendEntries(AppendEntries {
                     term: self.term,
                     leader_id: self.id,
                     prev_log_id: self.log.last().map(|l| l.id),
-                    entries: None,
+                    entries,
                     leader_commit: self.commit_idx,
                 })) {
                     return Err(Error::TxDisconnected);
@@ -309,7 +316,12 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                             break Ok(());
                         }
                     }
-                    Message::AppendEntriesRes { term, success } => {
+                    Message::AppendEntriesRes {
+                        term,
+                        follower_id,
+                        recv_log_id,
+                        success,
+                    } => {
                         if term > self.term {
                             self.term = term;
                             self.state = NodeState::Follower;
@@ -317,7 +329,37 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                         }
 
                         if success {
-                            // TODO: commit
+                            if let Some(recv_log_id) = recv_log_id {
+                                *self.next_idx
+                                    .get_mut(&follower_id)
+                                    .ok_or(Error::UnknownFollowerId)? = recv_log_id + 1;
+                                *self.match_idx
+                                    .get_mut(&follower_id)
+                                    .ok_or(Error::UnknownFollowerId)? = recv_log_id;
+                            }
+                        } else {
+                            *self.next_idx
+                                .get_mut(&follower_id)
+                                .ok_or(Error::UnknownFollowerId)? -= 1;
+                        }
+
+                        for i in ((self.commit_idx + 1)..self.log.len()).rev() {
+                            if self.log[i].id.term != self.term {
+                                break;
+                            }
+
+                            let mut cnt = 0;
+                            for peer in self.peers.keys() {
+                                if *self.match_idx.get(peer).ok_or(Error::UnknownFollowerId)? >= i {
+                                    cnt += 1;
+                                }
+                            }
+
+                            if cnt >= self.majority() {
+                                // TODO: commit
+                                self.commit_idx = i;
+                                break;
+                            }
                         }
                     }
                 },
@@ -379,10 +421,10 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
             leader_commit,
         } = msg;
 
-        let success = if *term < self.term || !self.contains_log_id(prev_log_id) {
-            false
+        let (success, recv_log_id) = if *term < self.term || !self.contains_log_id(prev_log_id) {
+            (false, None)
         } else {
-            if let Some(entries) = entries {
+            let recv_log_id = if let Some(entries) = entries {
                 for entry in entries {
                     let id = entry.id;
 
@@ -401,9 +443,13 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
                         self.log.push(entry.clone());
                     }
                 }
-            }
 
-            true
+                Some(entries.last().unwrap().id.idx)
+            } else {
+                None
+            };
+
+            (true, recv_log_id)
         };
 
         if *leader_commit > self.commit_idx {
@@ -415,6 +461,8 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
 
         let response = Message::AppendEntriesRes {
             term: self.term,
+            follower_id: self.id,
+            recv_log_id,
             success,
         };
 

@@ -8,4 +8,7 @@ pub enum Error {
 
     #[fail(display = "TX disconnected")]
     TxDisconnected,
+
+    #[fail(display = "unknown followe ID")]
+    UnknownFollowerId,
 }
