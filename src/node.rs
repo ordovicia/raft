@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-// use failure;
+use failure;
 use rand::{self, Rng};
 
 use error::Error;
@@ -121,14 +121,14 @@ impl<T: Clone, R: Remote<T>> LocalNode<T, R> {
         self.peers = peers;
     }
 
-    pub fn tick_one(&mut self) -> Result<(), Error> {
+    pub fn tick_one(&mut self) -> Result<(), failure::Error> {
         self.voted_for = None;
 
         match self.state {
             NodeState::Follower => self.tick_follower(),
             NodeState::Candidate => self.tick_candidate(),
             NodeState::Leader => self.tick_leader(),
-        }
+        }.map_err(|e| e.into())
     }
 
     fn tick_follower(&mut self) -> Result<(), Error> {
