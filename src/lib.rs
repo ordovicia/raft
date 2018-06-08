@@ -1,7 +1,6 @@
 #![feature(deadline_api)]
 #![allow(dead_code)]
 
-// TODO: proper privacy
 // TODO: client command
 
 #[macro_use]
@@ -20,15 +19,19 @@ pub mod node;
 mod tests {
     #[test]
     fn it_works() {
-        use node::{LocalNode, RemoteNode};
         use std::collections::HashMap;
+        // use std::thread;
+
+        use node::{LocalNode, RemoteNode};
 
         let election_timeout_range = (150, 300);
 
         type Remote = RemoteNode<i32>;
         type Local = LocalNode<i32, Remote>;
 
-        let (mut locals, remotes): (Vec<Local>, HashMap<usize, Remote>) = (0..5)
+        const NODE_NUM: usize = 5;
+
+        let (mut locals, remotes): (Vec<Local>, HashMap<usize, Remote>) = (0..NODE_NUM)
             .map(|id| {
                 let (local, tx) = LocalNode::new(id, election_timeout_range);
                 let remote = RemoteNode::new(id, tx);
@@ -40,7 +43,23 @@ mod tests {
             let mut remotes = remotes.clone();
             remotes.remove(&id);
             local.set_peers(remotes);
-            // println!("{}: {:#?}", id, local);
         }
+
+        // let mut threads = Vec::with_capacity(NODE_NUM);
+        //
+        // for mut local in locals {
+        //     threads.push(thread::spawn(move || loop {
+        //         if let Err(e) = local.tick_one() {
+        //             eprintln!("{}", e);
+        //             break;
+        //         }
+        //     }));
+        // }
+        //
+        // for thread in threads {
+        //     thread
+        //         .join()
+        //         .expect("Couldn't join on the associated thread");
+        // }
     }
 }
